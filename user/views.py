@@ -25,7 +25,6 @@ def login(request):
         email = data.get('email')
         password = data.get('password')
         if User.objects.filter(email = email, password=password).first():
-            # authenticate(email = email, password = password)
             return JsonResponse({'message': 'Login successful', 'status': 200})
         # User authentication failed
         return JsonResponse({'message': 'Invalid credentials', 'status': 401})
