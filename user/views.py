@@ -11,7 +11,7 @@ def register_user(request):
          return JsonResponse({'msg': 'Method not allowed'})
     try:
         data = json.loads(request.body)
-        user = User.objects.create(**data)
+        user = User.objects.create_user(**data)
         return JsonResponse({'message': 'User registered', 'status': 201, 
                              'data': model_to_dict(user)})
     except Exception as e:
@@ -22,9 +22,7 @@ def login(request):
         return JsonResponse({'msg': 'Method not allowed'})
     try:
         data = json.loads(request.body)
-        email = data.get('email')
-        password = data.get('password')
-        if User.objects.filter(email = email, password=password).first():
+        if authenticate(**data):
             return JsonResponse({'message': 'Login successful', 'status': 200})
         # User authentication failed
         return JsonResponse({'message': 'Invalid credentials', 'status': 401})
