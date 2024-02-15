@@ -52,7 +52,8 @@ class UserApi(APIView):
             serializer = LoginSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             serializer.save()
-            return Response({'message': 'Login successful', 'status': 200}, status=200)
+            token = RefreshToken.for_user(serializer.instance).access_token
+            return Response({'message': 'Login successful', 'status': 200, 'token': str(token)}, status=200)
         # User authentication failed
         except Exception as e:
             return Response({'message': str(e), 'status': 400})
