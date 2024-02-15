@@ -21,7 +21,7 @@ class UserAPI(APIView):
             url = f'{settings.BASE_URL}{reverse("userApi")}?token={token}'
             email = request.data['email']
             subject = 'This is mail from django server'
-            message = f'Hello from Backend developer!\n {url}'
+            message = f'Hello from Backend developer!\nPlease Verify: {url}'
             from_mail = settings.EMAIL_HOST_USER
             recipient_list = [email]
             send_mail(subject, message, from_mail, recipient_list)
@@ -34,7 +34,7 @@ class UserAPI(APIView):
         try:
             token = request.query_params.get('token')
             if not token:
-                pass
+                return Response({'message': 'Invalid Token'})
             payload = jwt.decode(token, key=settings.SIMPLE_JWT.get('SIGNING_KEY'), algorithms=[settings.SIMPLE_JWT.get('ALGORITHM')])
             user = User.objects.get(id=payload['user_id'])
             user.is_verified = True
