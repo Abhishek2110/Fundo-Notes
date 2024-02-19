@@ -16,3 +16,14 @@ class Notes(models.Model):
 
     def __str__(self) -> str:
         return f'{self.title}'
+    
+class Label(models.Model):
+    name = models.CharField(max_length = 255, null = True)
+    user = models.ForeignKey(User, on_delete = models.CASCADE)
+
+    class Meta:
+        db_table = 'label'
+
+    def __str__(self) -> str:
+        return f'{self.name}'
+    
