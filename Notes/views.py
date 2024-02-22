@@ -6,6 +6,8 @@ from .models import Notes, Label
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
+from .utils import RedisClient
+import json
 
 # Create your views here.
 class NotesAPI(APIView):
@@ -15,41 +17,53 @@ class NotesAPI(APIView):
 
     def get(self, request):
         try:
-            notes = Notes.objects.filter(user_id = request.user.id)
+            cache_notes = RedisClient.get(f'user_{request.user.id}')
+            if cache_notes:
+                cache_notes_dict = [json.loads(x) for x in cache_notes.values()]  # Parse JSON string to dictionary
+                return Response({'message': 'Successfully Fetched Data from Cache', 'status': 200, 'data': cache_notes_dict}, status=200)
+            # If cache_notes is empty or None, proceed with fetching data from database
+            notes = Notes.objects.filter(user_id=request.user.id)
             serializer = NotesSerializer(notes, many=True)
-            return Response({'message': 'Successfully Fetched Data', 'status': 200,
-                             'data': serializer.data}, status=200)
+            return Response({'message': 'Successfully Fetched Data', 'status': 200, 'data': serializer.data}, status=200)
         except Exception as e:
-            return Response({'message': str(e), 'status': 400}, status = 400)
+            return Response({'message': str(e), 'status': 400}, status=400)
 
-    def post(self, request):
+    def post(self,request):
         try:
             request.data['user'] = request.user.id
-            serializer = NotesSerializer(data = request.data)
+            serializer = NotesSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
             serializer.save()
-            return Response({'message': 'Note Created Successfully!', 'status': 201, 
-                             'data': serializer.data}, status = 201)
+            note_id = serializer.instance.id
+            RedisClient.save(f'user_{request.user.id}', f'note_{note_id}', serializer.data)
+            return Response({'message': 'Note Created', 'status': 201, 
+                            'data': serializer.data}, status=201)
         except Exception as e:
-            return Response({'message': str(e), 'status': 400}, status = 400)
+            return Response({'message': str(e), 'status': 400}, status=400)
      
     def put(self, request):
         try:
             request.data['user'] = request.user.id
-            label = Label.objects.get(id = request.data.get('name'), user_id=request.data.get('user'))
-            serializer = LabelSerializer(instance = label, data = request.data)
+            note_id = request.data.get('id')
+            note = Notes.objects.get(id = note_id, user_id=request.data.get('user'))
+            serializer = NotesSerializer(instance = note, data = request.data)
             serializer.is_valid(raise_exception=True)
             serializer.save()
+            data_json = serializer.data
+            RedisClient.save(f'user_{request.user.id}',f'note_{note_id}', data_json)
             return Response({'message': 'Data Updated', 'status': 200, 'data': serializer.data}, status=200)
-        except Label.DoesNotExist:
-            return Response({'message': 'Label not found', 'status': 404}, status=404)
+        except Notes.DoesNotExist:
+            return Response({'message': 'Note not found', 'status': 404}, status=404)
         except Exception as e:
             return Response({'message': str(e), 'status': 400}, status=400)
             
     def delete(self, request):
         try:
-            label = Label.objects.get(id = request.data.get('name'), user_id=request.user.id)
-            label.delete()
+            note_id = request.query_params.get('id')
+            note = Notes.objects.get(id = note_id)
+            user_id = request.user.id
+            RedisClient.delete(f'user_{user_id}', f'note_{note_id}')
+            note.delete()
             return Response({'message': 'Note Deleted', 'status': 200}, status=200)
         except Notes.DoesNotExist:
             return Response({'msg': 'Notes not found', 'status': 404}, status=404)
@@ -113,6 +127,25 @@ class ArchiveTrashAPI(viewsets.ViewSet):
         except Exception as e:
             return Response({'message': str(e), 'status': 400}, status=400)
 
+class GetOneApi(APIView):
+
+    authentication_classes = (JWTAuthentication,)
+    permission_classes = (IsAuthenticated,)
+    
+    def get(self, request):
+        try:
+            user_id = request.user.id
+            note_id = request.query_params.get('id')
+            cache_notes = RedisClient.get_one(f'user_{user_id}', f'note_{note_id}')
+            if cache_notes:
+                cache_notes_dict = json.loads(cache_notes)
+                return Response({'message': 'Successfully Fetched Data from cache', 'status': 200, 'data': cache_notes_dict}, status=200)
+            note = Notes.objects.get(id = note_id, user_id = user_id)
+            serializer = NotesSerializer(note, many=False)
+            return Response({'message': 'Successfully Fetched Data', 'status': 200, 'data': serializer.data}, status=200)
+        except Exception as e:
+            return Response({'message': str(e), 'status': 400}, status=400)
+
 class LabelAPI(viewsets.ViewSet):
     
     authentication_classes = (JWTAuthentication,)
@@ -146,7 +179,7 @@ class LabelAPI(viewsets.ViewSet):
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response({'message': 'Data Updated', 'status': 200, 'data': serializer.data}, status=200)
-        except Notes.DoesNotExist:
+        except Label.DoesNotExist:
             return Response({'message': 'Label not found', 'status': 404}, status=404)
         except Exception as e:
             return Response({'message': str(e), 'status': 400}, status=400)
@@ -159,9 +192,10 @@ class LabelAPI(viewsets.ViewSet):
         except Notes.DoesNotExist:
             return Response({'msg': 'Label not found', 'status': 404}, status=404)
         except Exception as e:
-            print(e)
             return Response({'message': str(e), 'status': 400}, status=400)            
             
+
+
 
 
 
