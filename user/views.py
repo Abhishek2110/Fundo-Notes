@@ -8,6 +8,8 @@ from rest_framework.reverse import reverse
 import jwt
 from .models import User
 from jwt import PyJWTError
+from .tasks import celery_send_mail
+
 
 class UserAPI(APIView):
 
@@ -24,9 +26,9 @@ class UserAPI(APIView):
             message = f'Hello from Backend developer!\nPlease Verify: {url}'
             from_mail = settings.EMAIL_HOST_USER
             recipient_list = [email]
-            send_mail(subject, message, from_mail, recipient_list)
+            celery_send_mail.delay(subject, message, from_mail, recipient_list)
             return Response({'message': 'User registered', 'status': 201, 
-                                'data': serializer.data}, status=201)
+                                'data': "serializer.data"}, status=201)
         except Exception as e:
             return Response({'message': str(e), 'status': 400}, status=400)
         
@@ -56,4 +58,5 @@ class UserApi(APIView):
             return Response({'message': 'Login successful', 'status': 200, 'token': str(token)}, status=200)
         # User authentication failed
         except Exception as e:
-            return Response({'message': str(e), 'status': 400})
+            print(type(e))
+            return Response({'message': str(e), 'status': 400}, status=400)

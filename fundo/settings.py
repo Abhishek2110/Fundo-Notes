@@ -136,11 +136,11 @@ AUTH_USER_MODEL = 'user.User'
 BASE_URL = environ.get('BASE_URL')
 EMAIL_BACKEND = environ.get('EMAIL_BACKEND')
 EMAIL_HOST = environ.get('EMAIL_HOST')
-EMAIL_PORT = environ.get('EMAIL_PORT')
 EMAIL_HOST_USER = environ.get('EMAIL_USERNAME')
 EMAIL_HOST_PASSWORD = environ.get('EMAIL_PASSWORD')
-EMAIL_USE_TLS = True
-EMAIL_USE_SSL = False
+EMAIL_PORT = 465
+EMAIL_USE_TLS = False
+EMAIL_USE_SSL = True
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
@@ -196,3 +196,15 @@ CACHES = {
 # Session Configuration with Redis
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 SESSION_CACHE_ALIAS = 'default'
+
+# Celery Configuration Options
+CELERY_BROKER = environ.get('BROKER')
+CELERY_BROKER_URL = CELERY_BROKER
+CELERY_RESULT_BACKEND = CELERY_BROKER
+CELERY_ACCEPT_CONTENT = ["application/json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = environ.get('TIME_ZONE')
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60
+CELERY_ALWAYS_EAGER = False
