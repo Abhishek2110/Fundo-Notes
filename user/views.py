@@ -28,7 +28,7 @@ class UserAPI(APIView):
             recipient_list = [email]
             celery_send_mail.delay(subject, message, from_mail, recipient_list)
             return Response({'message': 'User registered', 'status': 201, 
-                                'data': "serializer.data"}, status=201)
+                                'data': serializer.data}, status=201)
         except Exception as e:
             return Response({'message': str(e), 'status': 400}, status=400)
         
