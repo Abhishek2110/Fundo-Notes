@@ -1,13 +1,15 @@
 from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework import viewsets
-from .serializers import NotesSerializer, LabelSerializer
-from .models import Notes, Label
+from .serializers import NotesSerializer, LabelSerializer, CollaboratorSerializer
+from .models import Notes, Label, Collaborator
+from user.models import User
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 from .utils import RedisClient
 import json
+from django.db.models import Q
 
 # Create your views here.
 class NotesAPI(APIView):
@@ -22,7 +24,8 @@ class NotesAPI(APIView):
                 cache_notes_dict = [json.loads(x) for x in cache_notes.values()]  # Parse JSON string to dictionary
                 return Response({'message': 'Successfully Fetched Data from Cache', 'status': 200, 'data': cache_notes_dict}, status=200)
             # If cache_notes is empty or None, proceed with fetching data from database
-            notes = Notes.objects.filter(user_id=request.user.id)
+            lookup = Q(user_id=request.user.id) | Q(collaborators__id=request.user.id)
+            notes = Notes.objects.filter(lookup)
             serializer = NotesSerializer(notes, many=True)
             return Response({'message': 'Successfully Fetched Data', 'status': 200, 'data': serializer.data}, status=200)
         except Exception as e:
@@ -194,8 +197,27 @@ class LabelAPI(viewsets.ViewSet):
         except Exception as e:
             return Response({'message': str(e), 'status': 400}, status=400)            
             
-
-
-
-
-
+class CollaboratorApi(APIView):
+    
+    authentication_classes = (JWTAuthentication,)
+    permission_classes = (IsAuthenticated,)
+    
+    def post(self, request):
+        try:    
+            if not request.data["collaborator"]:
+                return Response({'message': 'Collaborator ID is not provided.', 'status': 400}, status=400)
+            serializer = CollaboratorSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save() 
+            return Response({'message': f'Note Shared to user {request.data["collaborator"]}.', 'status': 200}, status=200)
+        except Exception as e:
+            return Response({'message': str(e), 'status': 400}, status=400)
+        
+    def delete(self, request):
+        try:
+            note = Notes.objects.get(id=request.data['note'], user_id=request.user.id)
+            [note.collaborators.remove(user) for user in request.data['collaborator']]
+            return Response({'message': f'Access to user {request.data["collaborator"]} removed.', 'status': 200}, status=200)
+        except Exception as e:
+            return Response({'message': str(e), 'status': 400}, status=400)
+            
