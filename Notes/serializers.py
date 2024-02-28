@@ -6,7 +6,7 @@ class NotesSerializer(serializers.ModelSerializer):
         model = Notes
         fields = ('id', 'title', 'description', 'color', 'reminder', 'is_archive', 'is_trash', 'user')
         read_only_fields = ['is_archive', 'is_trash']
-    
+        
 class LabelSerializer(serializers.ModelSerializer):
     class Meta:
         model = Label

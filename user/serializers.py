@@ -7,11 +7,13 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class RegisterSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(max_length=50, required=True)
+    password = serializers.CharField(max_length=50, required=True, write_only=True)
     class Meta:
         model = User
         fields = ('id', 'username', 'email', 'password', 'first_name', 'last_name', 'date_joined')
         extra_kwargs = {'password': {'write_only': True}}
-        read_only_fields = ('date_joined',)
+        read_only_fields = ('date_joined', 'first_name', 'last_name',)
 
     def validate_username(self, value):
         pattern = r'^[a-zA-Z0-9_]+$'

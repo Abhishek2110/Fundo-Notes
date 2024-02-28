@@ -20,7 +20,7 @@ trash = views.ArchiveTrashAPI.as_view({
 
 urlpatterns = [
     path('notes/', views.NotesAPI.as_view(), name='NotesApi'),
-    path('createCollaborator/', views.CollaboratorApi.as_view(), name='CollaboratorApi'),
+    path('Collaborator/', views.CollaboratorApi.as_view(), name='CollaboratorApi'),
     path('notes/one/', views.GetOneApi.as_view(), name='NotesGetOneApi'),
     path('label/', my_viewset, name = 'LabelApi'),
     path('archive/', archive, name='ArchiveApi'),

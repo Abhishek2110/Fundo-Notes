@@ -5,6 +5,8 @@ from django.dispatch import receiver
 from django_celery_beat.models import PeriodicTask, CrontabSchedule
 from django.conf import settings
 import json
+from datetime import timedelta, datetime
+from django.utils import timezone
 
 class Collaborator(models.Model):
     note = models.ForeignKey("Notes", on_delete=models.CASCADE)
@@ -45,21 +47,32 @@ class Label(models.Model):
 def set_reminder(instance, **kwargs):
     reminder = instance.reminder
     if reminder:
-        day = reminder.day
-        minute = reminder.minute
-        hour = reminder.hour
-        year = reminder.year
-        month = reminder.month
+        # Calculate the reminder time based on the reminder datetime and the current time
+        reminder_time = timezone.make_aware(datetime(reminder.year, reminder.month, reminder.day, reminder.hour, reminder.minute))
         
-        crontab, _ = CrontabSchedule.objects.get_or_create(minute=minute,
-            hour=hour,
-            day_of_month=day,
-            month_of_year=month
-        )
-        
-        task = PeriodicTask.objects.get_or_create(
-            crontab=crontab,
-            name=f"note-{instance.id}--user-{instance.user.id}",
-            task = 'user.tasks.celery_send_mail',
-            args = json.dumps([f'{instance.title}', 'Reminder for notes', settings.EMAIL_HOST_USER, [instance.user.email]])
-        )
+        # Calculate the time difference between the current time and the reminder time
+        time_difference = reminder_time - timezone.now()
+
+        # If the reminder time is in the future, schedule the reminder
+        if time_difference.total_seconds() > 0:
+            # Calculate the time 5 hours and 30 minutes before the reminder time
+            delta = timedelta(hours=5, minutes=30)
+            reminder_time = reminder_time - delta
+            
+            crontab, _ = CrontabSchedule.objects.get_or_create(minute=reminder_time.minute,
+                hour=reminder_time.hour,
+                day_of_month=reminder_time.day,
+                month_of_year=reminder_time.month
+            )
+            
+            task = PeriodicTask.objects.filter(name=f"note-{instance.id}--user-{instance.user.id}").first()
+            if task:
+                task.crontab = crontab
+                task.save()
+            else:
+                task = PeriodicTask.objects.create(
+                    crontab=crontab,
+                    name=f"note-{instance.id}--user-{instance.user.id}",
+                    task='user.tasks.celery_send_mail',
+                    args=json.dumps([f'{instance.title}', 'Reminder for notes', settings.EMAIL_HOST_USER, [instance.user.email]])
+                )
