@@ -264,6 +264,7 @@ class LabelAPI(viewsets.ViewSet):
                 cursor.execute("INSERT INTO label (name, user_id) values (%s, %s)", (request.data['name'], request.data['user']))
                 cursor.execute("select * from label order by id desc fetch first row only")
                 columns = [col[0] for col in cursor.description]
+                data = cursor.fetchone()
                 data = dict(zip(columns, data))
             return Response({'message': 'Label Created Successfully!', 'status': 201, 
                              'data': data}, status = 201)
@@ -288,13 +289,15 @@ class LabelAPI(viewsets.ViewSet):
                 cursor.execute("UPDATE label SET name = %s WHERE id = %s and user_id = %s", (request.data['name'], request.data['id'], request.user.id))
                 cursor.execute("SELECT * FROM label WHERE user_id = %s and id=%s", (request.user.id, request.data['id']))
                 data = cursor.fetchone()
-                columns = [col[0] for col in cursor.description]
-                data = dict(zip(columns, data))
-            return Response({'message': 'Data Updated', 'status': 200, 'data': data}, status=200)
-        except Label.DoesNotExist:
-            return Response({'message': 'Label not found', 'status': 404}, status=404)
+                if data:  # Check if data is not None
+                    columns = [col[0] for col in cursor.description]
+                    data = dict(zip(columns, data))
+                    return Response({'message': 'Data Updated', 'status': 200, 'data': data}, status=200)
+                else:
+                    return Response({'message': 'Label not found', 'status': 404}, status=404)
         except Exception as e:
             return Response({'message': str(e), 'status': 400}, status=400)
+
       
     @swagger_auto_schema(manual_parameters=[
         openapi.Parameter('id', openapi.IN_QUERY, type=openapi.TYPE_INTEGER, required=True)
@@ -305,13 +308,23 @@ class LabelAPI(viewsets.ViewSet):
     def delete(self, request):
         try:
             label_id = request.query_params.get('id')
-            with connection.cursor() as cursor:
-                cursor.execute("DELETE FROM label WHERE id = %s AND user_id = %s", (label_id, request.user.id))
-            return Response({'message': 'Label Deleted', 'status': 200}, status=200)
-        except Notes.DoesNotExist:
-            return Response({'msg': 'Label not found', 'status': 404}, status=404)
+            if label_id is None:
+                return Response({'message': 'Label ID not provided', 'status': 400}, status=400)
+            if Label.objects.get(id = label_id):
+                with connection.cursor() as cursor:
+                    cursor.execute("DELETE FROM label WHERE id = %s AND user_id = %s", (label_id, request.user.id))
+                    cursor.execute("SELECT * FROM label WHERE id = %s AND user_id = %s", (label_id, request.user.id))
+                    data = cursor.fetchone()
+                    if data is None:
+                        return Response({'message': 'Label Deleted', 'status': 200}, status=200)
+                    else:
+                        return Response({'message': 'Label not found', 'status': 404}, status=404)
+        except Label.DoesNotExist:
+            return Response({'message': 'Label does not exist', 'status': 404}, status=404)
         except Exception as e:
-            return Response({'message': str(e), 'status': 400}, status=400)            
+            return Response({'message': str(e), 'status': 400}, status=400)           
+            
+
             
 class CollaboratorApi(APIView):
     

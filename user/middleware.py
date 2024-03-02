@@ -15,7 +15,6 @@ class RequestLogMiddleware:
         else:
             RequestLog.objects.create(path=request.path, method=request.method)
         response = self.get_response(request)
-        print("middleware after response")
         # Code to be executed for each request/response after
         # the view is called.
 
